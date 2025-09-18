@@ -1,10 +1,10 @@
 import typing
-from litestar import Litestar, get
-
+from litestar import Litestar, get, post, Controller
 import repository
 from settings import settings
-from repository import CoreDBRepository, _AddTaskDict
+from repository import CoreDBRepository, _TaskDTO
 import repository
+from pydantic import BaseModel, Field
 
 class ASGILifespan:
 
@@ -25,6 +25,11 @@ class ASGILifespan:
             tables=["tasks"]
         )
 
+class TaskGet(BaseModel):
+    id: int = Field(
+        gt=0
+    )
+
 @get("/", tags=["Litestar"])
 async def index() -> typing.Dict[str, str]:
     return {"status": "ok"}
@@ -35,18 +40,29 @@ async def postgres_url() -> typing.Dict[str, str]:
         "url": settings.postgres_url
     }
 
-@get("/test/repo", tags=["DB"])
-async def test_repo() -> _AddTaskDict | None:
-    repo = CoreDBRepository()
-    return await repo.add(
-        repo.model(
-            title="Some task",
-            description="Some description",
+class TasksController(Controller):
+    path = "/tasks"
+
+    # to POST
+    @get("/add", tags=["DB"])
+    async def add_task(self) -> _TaskDTO:
+        repo = CoreDBRepository()
+        return await repo.add(
+            repo.model(
+                title="Some task",
+                description="Some description",
+            )
         )
-    )
+
+    @post("/get", tags=["DB"])
+    async def get_task(self, data: TaskGet) -> _TaskDTO:
+        repo = CoreDBRepository()
+        return await repo.get(
+            data.id
+        )
 
 app = Litestar(
-    route_handlers=[index, postgres_url, test_repo],
+    route_handlers=[index, postgres_url, TasksController],
     on_startup=[ASGILifespan.startup],
     on_shutdown=[ASGILifespan.shutdown],
     debug=True
