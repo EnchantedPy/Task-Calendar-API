@@ -1,5 +1,5 @@
 import typing
-from litestar import Litestar, get, post, Controller
+from litestar import Litestar, get, post, delete, patch, Controller
 import repository
 from settings import settings
 from repository import CoreDBRepository, _TaskDTO
@@ -30,6 +30,24 @@ class TaskGet(BaseModel):
         gt=0
     )
 
+class TaskDel(BaseModel):
+    id: int = Field(
+        gt=0
+    )
+
+class TaskUpdateInfo(BaseModel):
+    id: int = Field(
+        gt=0
+    )
+    title: str
+    description: str
+
+class TaskMarkDone(BaseModel):
+    id: int = Field(
+        gt=0
+    )
+    done: bool
+
 @get("/", tags=["Litestar"])
 async def index() -> typing.Dict[str, str]:
     return {"status": "ok"}
@@ -59,6 +77,27 @@ class TasksController(Controller):
         repo = CoreDBRepository()
         return await repo.get(
             data.id
+        )
+
+    @delete("/delete", tags=["DB"], status_code=200)
+    async def delete_task(self, data: TaskDel) -> _TaskDTO:
+        repo = CoreDBRepository()
+        return await repo.delete(
+            data.id
+        )
+
+    @patch("/update", tags=["DB"])
+    async def update_task(self, data: TaskUpdateInfo) -> _TaskDTO:
+        repo = CoreDBRepository()
+        return await repo.update(
+            repo.update_info_dto(**data.model_dump())
+        )
+
+    @patch("/done", tags=["DB"])
+    async def done_task(self, data: TaskMarkDone) -> _TaskDTO:
+        repo = CoreDBRepository()
+        return await repo.update(
+            repo.update_done_dto(**data.model_dump())
         )
 
 app = Litestar(

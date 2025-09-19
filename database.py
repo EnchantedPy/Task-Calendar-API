@@ -5,6 +5,21 @@ import typing
 import uuid
 from loguru import logger as log
 
+class _InstanceSupportsSequence(BaseModel):
+    @property
+    def __sequence_fields__(self) -> typing.Sequence[str]:
+        return [
+            name for name in self.__dict__.keys() if name != "id"
+        ]
+
+    @property
+    def __to_args__(self) -> typing.Tuple[
+        typing.Any, ...
+    ]:
+        return tuple(
+            val for val in self.__dict__.values()
+        )
+
 class _ModelSupportsSequence(BaseModel):
 
     @classmethod
@@ -145,6 +160,15 @@ class AddTaskModel(_ModelSupportsSequence):
 class _TaskDTO(typing.TypedDict):
     id: int
     title: str
-    desc: str
+    description: str
     done: bool
     uid: uuid.UUID
+
+class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
+    id: int
+    title: str
+    description: str
+
+class _TaskDoneDTO(_InstanceSupportsSequence):
+    id: int
+    done: bool
