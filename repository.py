@@ -75,9 +75,6 @@ class CoreDBRepository:
         async with pool.acquire() as conn:
             async with conn.transaction():
                 seq = task.__sequence_fields__
-                # set_ = ""
-                # for i in range(len(seq)):
-                #     set_ += f"{seq[i]}=${i}"
                 set_ = ", ".join(
                     [
                         f"{seq[i]}=${i+2}" for i in range(len(seq))

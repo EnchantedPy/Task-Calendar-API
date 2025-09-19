@@ -46,7 +46,6 @@ class TaskMarkDone(BaseModel):
     id: int = Field(
         gt=0
     )
-    done: bool
 
 @get("/", tags=["Litestar"])
 async def index() -> typing.Dict[str, str]:
@@ -96,8 +95,10 @@ class TasksController(Controller):
     @patch("/done", tags=["DB"])
     async def done_task(self, data: TaskMarkDone) -> _TaskDTO:
         repo = CoreDBRepository()
+        dict_ = dict(**data.model_dump())
+        dict_["done"] = True
         return await repo.update(
-            repo.update_done_dto(**data.model_dump())
+            repo.update_done_dto(**dict_)
         )
 
 app = Litestar(
