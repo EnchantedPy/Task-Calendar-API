@@ -7,7 +7,7 @@ from loguru import logger as log
 from uow import get_uow, UnitOfWork
 
 class CoreDBRepository:
-    _uow: typing.ClassVar[typing.AsyncGenerator[UnitOfWork | None]] = get_uow()
+    _uow: typing.ClassVar[typing.Callable[[], typing.AsyncGenerator[UnitOfWork | None]]] = get_uow
 
     def __init__(self) -> None:
         # self.pool_getter: typing.Callable[typing.AsyncGenerator[asyncpg.pool.Pool, None]] = pool_getter
@@ -18,13 +18,10 @@ class CoreDBRepository:
         self.update_done_dto: typing.Type[_InstanceSupportsSequence] = _TaskDoneDTO
         self.update_info_dto: typing.Type[_InstanceSupportsSequence] = _TaskUpdateInfoDTO
 
-    # async def __pool(self) -> asyncpg.pool.Pool | None:
-    #     __instance = self.pool_getter()
-    #     pool = await __instance.__anext__()
-    #     return pool
-
     async def transaction(self) -> UnitOfWork | None:
-        return await self.__class__._uow.__anext__()
+        async for uow in self.__class__._uow():
+            return uow
+        return None
 
     async def add(
             self,
@@ -41,52 +38,31 @@ class CoreDBRepository:
                 )
         return self.return_dto(**row)
 
-    # async def add(
-    #         self,
-    #         task: AddTaskModel
-    # ) -> _TaskDTO:
-    #     pool = await self.__pool()
-    #     async with pool.acquire() as conn:
-    #         async with conn.transaction():
-    #             await conn.execute(
-    #                 "INSERT INTO tasks VALUES ($1, $2, $3, $4, $5)",
-    #                 *task.__to_args__
-    #             )
-    #             row = await conn.fetchrow(
-    #                 "SELECT * FROM tasks WHERE id=$1",
-    #                 task.id
-    #             )
-    #     return self.return_dto(**row)
-
     async def get(
             self,
             task_id: int
     ) -> _TaskDTO:
-        pool = await self.__pool()
-        async with pool.acquire() as conn:
-            async with conn.transaction():
-                row = await conn.fetchrow(
-                    "SELECT * FROM tasks WHERE id=$1",
-                    task_id
-                )
+        async with await self.transaction() as uow:
+            row = await uow.fetchrow(
+                "SELECT * FROM tasks WHERE id=$1",
+                task_id
+            )
         return self.return_dto(**row)
 
     async def delete(
             self,
             task_id: int
     ) -> _TaskDTO:
-        pool = await self.__pool()
         try:
-            async with pool.acquire() as conn:
-                async with conn.transaction():
-                    row = await conn.fetchrow(
+            async with await self.transaction() as uow:
+                row = await uow.fetchrow(
                         "SELECT * FROM tasks WHERE id=$1",
                         task_id
-                    )
-                    await conn.execute(
+                )
+                await uow.execute(
                         "DELETE FROM tasks WHERE id=$1",
                         task_id
-                    )
+                )
         except Exception:
             raise
         return self.return_dto(**row)
@@ -95,9 +71,7 @@ class CoreDBRepository:
             self,
             task: _TaskUpdateInfoDTO | _TaskDoneDTO
     ) -> _TaskDTO:
-        pool = await self.__pool()
-        async with pool.acquire() as conn:
-            async with conn.transaction():
+        async with await self.transaction() as uow:
                 seq = task.__sequence_fields__
                 set_ = ", ".join(
                     [
@@ -105,11 +79,11 @@ class CoreDBRepository:
                     ]
                 )
                 self.log.warning(f"SET = {set_}")
-                await conn.execute(
+                await uow.execute(
                     f"UPDATE tasks SET {set_} WHERE id=$1",
                     *task.__to_args__
                 )
-                row = await conn.fetchrow(
+                row = await uow.fetchrow(
                     "SELECT * FROM tasks WHERE id=$1",
                     task.id
                 )
