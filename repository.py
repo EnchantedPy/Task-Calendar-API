@@ -1,7 +1,5 @@
-from typing import Coroutine
-
-import asyncpg
-from database import pool_getter, AddTaskModel, _TaskDTO, _ModelSupportsSequence, _InstanceSupportsSequence,  _TaskUpdateInfoDTO, _TaskDoneDTO
+from database import pool_getter, _TaskDTO
+from models import _InstanceSupportsSequence, AddTaskModel, _TaskUpdateInfoDTO, _TaskDoneDTO, _ModelSupportsSequence
 import typing
 from loguru import logger as log
 from uow import get_uow, UnitOfWork

@@ -1,10 +1,9 @@
 import typing
 from litestar import Litestar, get, post, delete, patch, Controller
-import repository
 from settings import settings
 from repository import CoreDBRepository, _TaskDTO
-import repository
 from pydantic import BaseModel, Field
+import models
 
 class ASGILifespan:
 
@@ -13,8 +12,8 @@ class ASGILifespan:
         from database import mgr_getter
         __instance = await mgr_getter().__anext__()
         await __instance.create_tables(
-            tables=["tasks"],
-            _models=[repository.AddTaskModel]
+            tables=["tasks", "calendar_notes"],
+            _models=[models._TaskModel, models._CalendarNoteModel]
         )
 
     @staticmethod
@@ -22,7 +21,7 @@ class ASGILifespan:
         from database import mgr_getter
         __instance = await mgr_getter().__anext__()
         await __instance.drop_tables(
-            tables=["tasks"]
+            tables=["tasks", "calendar_notes"],
         )
 
 class TaskGet(BaseModel):

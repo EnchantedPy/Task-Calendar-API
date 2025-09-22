@@ -1,41 +1,10 @@
 import asyncpg
-from pydantic import BaseModel, Field
+
+import models
 from settings import settings
 import typing
 import uuid
 from loguru import logger as log
-
-class _InstanceSupportsSequence(BaseModel):
-    @property
-    def __sequence_fields__(self) -> typing.Sequence[str]:
-        return [
-            name for name in self.__dict__.keys() if name != "id"
-        ]
-
-    @property
-    def __to_args__(self) -> typing.Tuple[
-        typing.Any, ...
-    ]:
-        return tuple(
-            val for val in self.__dict__.values()
-        )
-
-class _ModelSupportsSequence(BaseModel):
-
-    @classmethod
-    def __sequence_fields__(cls) -> typing.Sequence[typing.Tuple[str, str]]:
-        return [
-            (name, typ.__name__.lower())
-            for name, typ in cls.__annotations__.items()
-        ]
-
-    @property
-    def __to_args__(self) -> typing.Tuple[
-        typing.Any, ...
-    ]:
-        return tuple(
-            item for item in self.__dict__.values()
-        )
 
 class AsyncPGPoolManager:
     __instance: typing.ClassVar["AsyncPGPoolManager | None"] = None
@@ -77,6 +46,13 @@ class AsyncPGPoolManager:
         if arg == "uid":
             constraints.append("UNIQUE")
             constraints.append("NOT NULL")
+            constraints.append("DEFAULT get_random_uuid()")
+        if arg == "id":
+            constraints.append("UNIQUE")
+            constraints.append("NOT NULL")
+        if arg == "date":
+            constraints.append("NOT NULL")
+            constraints.append("DEFAULT now()")
         return constraints
 
 
@@ -87,11 +63,13 @@ class AsyncPGPoolManager:
             "str": "TEXT",
             "bool": "BOOLEAN",
             "uuid": "UUID",
+            "datetime": "TIMESTAMPTZ"
         }
         type_ = "pk" if arg == "id" else typ
         return arg, conventions[type_], self._get_constraints(arg)
 
-    async def create_tables(self, tables: typing.Sequence[str] | typing.Iterable[str], _models: typing.Sequence[typing.Type[_ModelSupportsSequence]]) -> bool | typing.NoReturn:
+    async def create_tables(self, tables: typing.Sequence[str] | typing.Iterable[str], _models: typing.Sequence[typing.Type[
+        models._ModelSupportsSequence]]) -> bool | typing.NoReturn:
         async with self as conn:
             try:
                 for idx, table in enumerate(tables):
@@ -134,28 +112,6 @@ async def mgr_getter() -> typing.AsyncGenerator[AsyncPGPoolManager, None]:
     mgr = await AsyncPGPoolManager.get_instance()
     yield mgr
 
-class IDFactory:
-    id: typing.ClassVar[int | None] = None
-
-    @classmethod
-    def get(cls) -> int:
-        if cls.id is None:
-            cls.id = 0
-        cls.id += 1
-        return cls.id
-
-class AddTaskModel(_ModelSupportsSequence):
-    id: int = Field(
-        default_factory=IDFactory.get
-    )
-    title: str
-    description: str
-    done: bool = Field(
-        default=False
-    )
-    uid: uuid.UUID = Field(
-        default_factory=uuid.uuid4
-    )
 
 class _TaskDTO(typing.TypedDict):
     id: int
@@ -163,12 +119,3 @@ class _TaskDTO(typing.TypedDict):
     description: str
     done: bool
     uid: uuid.UUID
-
-class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
-    id: int
-    title: str
-    description: str
-
-class _TaskDoneDTO(_InstanceSupportsSequence):
-    id: int
-    done: bool
