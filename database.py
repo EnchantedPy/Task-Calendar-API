@@ -46,7 +46,7 @@ class AsyncPGPoolManager:
         if arg == "uid":
             constraints.append("UNIQUE")
             constraints.append("NOT NULL")
-            constraints.append("DEFAULT get_random_uuid()")
+            constraints.append("DEFAULT uuid_generate_v4()")
         if arg == "id":
             constraints.append("UNIQUE")
             constraints.append("NOT NULL")
@@ -103,6 +103,39 @@ class AsyncPGPoolManager:
             except Exception as e:
                 self.log.warning(f"Error dropping table {table}...")
                 raise e
+
+    async def run_pre_init_hook(self) -> None:
+        async with self as conn:
+            try:
+                await conn.pool.execute(
+                    f"CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+                )
+            except Exception as e:
+                log.warning(f"Pre init hook failed {self}...")
+                raise e
+
+    async def run_post_init_hook(self) -> None:
+        async with self as conn:
+            try:
+                pass
+                # await conn.pool.execute(
+                #
+                # )
+                # CREATE INDEXes
+            except Exception as e:
+                log.warning(f"Post init hook failed {self}...")
+                raise e
+
+    async def run_after_shutdown_hook(self) -> None:
+        async with self as conn:
+            try:
+                await conn.pool.execute(
+                    f"DROP EXTENSION IF EXISTS 'uuid-ossp';"
+                )
+            except Exception as e:
+                log.warning(f"After shutdown hook failed {self}...")
+                raise e
+
 
 async def pool_getter() -> typing.AsyncGenerator[asyncpg.pool.Pool, None]:
     mgr = await AsyncPGPoolManager.get_instance()

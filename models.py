@@ -8,9 +8,9 @@ import functools
 
 class _InstanceSupportsSequence(BaseModel):
     @property
-    def __sequence_fields__(self) -> typing.Sequence[str]:
+    def __sequence_fields__(self) -> typing.Sequence[str] | typing.Iterable[str]:
         return [
-            name for name in self.__dict__.keys() if name != "id"
+            name for name in self.__dict__.keys() if name != "id" or name != "uid"
         ]
 
     @property
@@ -18,7 +18,7 @@ class _InstanceSupportsSequence(BaseModel):
         typing.Any, ...
     ]:
         return tuple(
-            val for val in self.__dict__.values()
+            val for _, val in self.__dict__.items() if _ != "id" or _ != "uid"
         )
 
 Task: typing.Literal["CalendarClass", "TaskClass"] = "TaskClass"
@@ -75,9 +75,10 @@ class _ModelSupportsSequence(BaseModel):
 
 
 class _TaskModel(_ModelSupportsSequence):
-    id: int = Field(
-        default_factory=functools.partial(IDFactory.get, Models[Task]),
-    )
+    id: int
+    # id: int = Field(
+    #     default_factory=functools.partial(IDFactory.get, Models[Task]),
+    # )
     title: str
     description: str
     done: bool = Field(
@@ -89,8 +90,12 @@ class _TaskModel(_ModelSupportsSequence):
     #     default_factory=uuid.uuid4
     # )
 
-class AddTaskModel(_TaskModel):
-    pass
+class AddTaskModel(_InstanceSupportsSequence):
+    title: str
+    description: str
+    done: bool = Field(
+        default=False
+    )
 
 class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
     id: int
@@ -102,9 +107,10 @@ class _TaskDoneDTO(_InstanceSupportsSequence):
     done: bool
 
 class _CalendarNoteModel(_ModelSupportsSequence):
-    id: int = Field(
-        default_factory=functools.partial(IDFactory.get, Models[CalendarNote]),
-    )
+    id: int
+    # id: int = Field(
+    #     default_factory=functools.partial(IDFactory.get, Models[CalendarNote]),
+    # )
 
     uid: uuid.UUID
     # uid: uuid.UUID = Field(

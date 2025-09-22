@@ -11,10 +11,12 @@ class ASGILifespan:
     async def startup() -> None:
         from database import mgr_getter
         __instance = await mgr_getter().__anext__()
+        await __instance.run_pre_init_hook()
         await __instance.create_tables(
             tables=["tasks", "calendar_notes"],
             _models=[models._TaskModel, models._CalendarNoteModel]
         )
+        await __instance.run_post_init_hook()
 
     @staticmethod
     async def shutdown() -> None:
@@ -23,6 +25,7 @@ class ASGILifespan:
         await __instance.drop_tables(
             tables=["tasks", "calendar_notes"],
         )
+        await __instance.run_after_shutdown_hook()
 
 class TaskGet(BaseModel):
     id: int = Field(

@@ -26,13 +26,17 @@ class CoreDBRepository:
             task: AddTaskModel
     ) -> _TaskDTO:
         async with await self.transaction() as uow:
-            await uow.execute(
-                    "INSERT INTO tasks VALUES ($1, $2, $3, $4, $5)",
-                    *task.__to_args__
+            placeholder_list = [f"${i+1}" for i in range(len(task.__to_args__))]
+            query = f"INSERT INTO tasks ({", ".join(field for field in task.__sequence_fields__)}) VALUES ({", ".join(placeholder_list)}) RETURNING id"
+            self.log.warning(query)
+            self.log.warning(task.__to_args__)
+            serial = await uow.fetchrow(
+                    query,
+                *task.__to_args__
             )
             row = await uow.fetchrow(
                     "SELECT * FROM tasks WHERE id=$1",
-                    task.id
+                    serial["id"]
                 )
         return self.return_dto(**row)
 
