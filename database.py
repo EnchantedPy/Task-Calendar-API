@@ -53,6 +53,9 @@ class AsyncPGPoolManager:
         if arg == "date":
             constraints.append("NOT NULL")
             constraints.append("DEFAULT now()")
+        if arg == "done":
+            constraints.append("NOT NULL")
+            constraints.append("DEFAULT false")
         return constraints
 
 

@@ -1,10 +1,8 @@
 import datetime
 import typing
 import uuid
-
 from pydantic import BaseModel, Field
-
-import functools
+import db.types as types
 
 class _InstanceSupportsSequence(BaseModel):
     @property
@@ -56,46 +54,73 @@ class IDFactory:
         return cls.__models[model]
 
 
-class _ModelSupportsSequence(BaseModel):
+# class _ModelSupportsSequence(BaseModel):
+#
+#     @classmethod
+#     def __sequence_fields__(cls) -> typing.Sequence[typing.Tuple[str, str]]:
+#         return [
+#             (name, typ.__name__.lower())
+#             for name, typ in cls.__annotations__.items()
+#         ]
+#
+#     @property
+#     def __to_args__(self) -> typing.Tuple[
+#         typing.Any, ...
+#     ]:
+#         return tuple(
+#             item for item in self.__dict__.values()
+#         )
 
-    @classmethod
-    def __sequence_fields__(cls) -> typing.Sequence[typing.Tuple[str, str]]:
-        return [
-            (name, typ.__name__.lower())
-            for name, typ in cls.__annotations__.items()
-        ]
+class _BaseAbstractModel:
+    def __init_subclass__(cls, **kw) -> None:
+        super().__init_subclass__(**kw)
+        for attr, anno in cls.__annotations__.items():
+            if not hasattr(cls, attr):
+                if isinstance(anno, type):
+                    setattr(cls, attr, anno())
 
-    @property
-    def __to_args__(self) -> typing.Tuple[
-        typing.Any, ...
-    ]:
-        return tuple(
-            item for item in self.__dict__.values()
-        )
+        def __sequence_fields__(cls) -> typing.Sequence[tuple[str, str]]:
+            return [
+                (attribute, getattr(cls, attr).__call__())
+                for attribute in cls.__annotations__
+                if callable(getattr(cls, attribute))
+            ]
+
+        def __to_args__(self) -> typing.Tuple[
+            typing.Any, ...
+        ]:
+            return tuple(
+                item for item in self.__dict__.values()
+            )
+
+        cls.__sequence_fields__ = classmethod(__sequence_fields__)
+        cls.__to_args__ = property(__to_args__)
+
+class _TaskModel(_BaseAbstractModel):
+    id: types.Integer = types.Integer(index=True)
+    title: types.String
+    description: types.String
+    done: types.Boolean
+    uid: types.UUID = types.UUID(index=True)
 
 
-class _TaskModel(_ModelSupportsSequence):
-    id: int
-    # id: int = Field(
-    #     default_factory=functools.partial(IDFactory.get, Models[Task]),
-    # )
-    title: str
-    description: str
-    done: bool = Field(
-        default=False
-    )
-
-    uid: uuid.UUID
-    # uid: uuid.UUID = Field(
-    #     default_factory=uuid.uuid4
-    # )
+# class _TaskModel(_ModelSupportsSequence):
+#     id: int
+#     # id: int = Field(
+#     #     default_factory=functools.partial(IDFactory.get, Models[Task]),
+#     # )
+#     title: str
+#     description: str
+#     done: bool
+#
+#     uid: uuid.UUID
+#     # uid: uuid.UUID = Field(
+#     #     default_factory=uuid.uuid4
+#     # )
 
 class AddTaskModel(_InstanceSupportsSequence):
     title: str
     description: str
-    done: bool = Field(
-        default=False
-    )
 
 class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
     id: int
@@ -103,10 +128,10 @@ class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
     description: str
 
 class _TaskDoneDTO(_InstanceSupportsSequence):
-    id: int
-    done: bool
+    id: types.Integer = types.Integer(index=True)
+    done: types.Boolean
 
-class _CalendarNoteModel(_ModelSupportsSequence):
+class _CalendarNoteModel(_BaseAbstractModel):
     id: int
     # id: int = Field(
     #     default_factory=functools.partial(IDFactory.get, Models[CalendarNote]),
@@ -126,5 +151,5 @@ class _CalendarNoteModel(_ModelSupportsSequence):
 
     note: str
 
-class AddCalendarNoteModel(_CalendarNoteModel):
-    pass
+class AddCalendarNoteModel(_InstanceSupportsSequence):
+    pass # NotImplemented

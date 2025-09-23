@@ -10,7 +10,7 @@ class CoreDBRepository:
     def __init__(self) -> None:
         # self.pool_getter: typing.Callable[typing.AsyncGenerator[asyncpg.pool.Pool, None]] = pool_getter
         self.uow: typing.Callable[[], typing.AsyncGenerator[UnitOfWork, None]] = get_uow
-        self.model: typing.Type[_ModelSupportsSequence] = AddTaskModel
+        self.model: typing.Type[_InstanceSupportsSequence] = AddTaskModel
         self.return_dto: typing.Type[typing.TypedDict] = _TaskDTO
         self.log = log
         self.update_done_dto: typing.Type[_InstanceSupportsSequence] = _TaskDoneDTO
