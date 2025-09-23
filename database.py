@@ -59,20 +59,23 @@ class AsyncPGPoolManager:
         return constraints
 
 
-    def _get_attr_type_constraints(self, arg, typ) -> tuple[str, str, typing.Sequence[str]]:
+    def _get_attr_type_constraints(self, arg: str, typ: str) -> tuple[str, str, typing.Sequence[str]]:
         conventions: dict[str, str] = {
-            "int": "INTEGER",
+            "Integer": "INTEGER",
             "pk": "SERIAL PRIMARY KEY",
-            "str": "TEXT",
-            "bool": "BOOLEAN",
-            "uuid": "UUID",
-            "datetime": "TIMESTAMPTZ"
+            "String": "TEXT",
+            "Boolean": "BOOLEAN",
+            "UUID": "UUID",
+            "DateTime": "TIMESTAMPTZ"
         }
         type_ = "pk" if arg == "id" else typ
+        self.log.warning(
+            f"Current return expression: {arg, conventions[type_], self._get_constraints(arg)}"
+        )
         return arg, conventions[type_], self._get_constraints(arg)
 
     async def create_tables(self, tables: typing.Sequence[str] | typing.Iterable[str], _models: typing.Sequence[typing.Type[
-        models._ModelSupportsSequence]]) -> bool | typing.NoReturn:
+        models._BaseAbstractModel]]) -> bool | typing.NoReturn:
         async with self as conn:
             try:
                 for idx, table in enumerate(tables):
@@ -82,6 +85,7 @@ class AsyncPGPoolManager:
                             constraint for constraint in constraints
                         ])}' for attr, type_, constraints in [self._get_attr_type_constraints(arg, typ) for arg, typ in _models[idx].__sequence_fields__()]
                     ]
+                    self.log.warning(columns)
                     await conn.pool.execute(
                         f"""
                             CREATE TABLE IF NOT EXISTS {table} (
@@ -133,7 +137,7 @@ class AsyncPGPoolManager:
         async with self as conn:
             try:
                 await conn.pool.execute(
-                    f"DROP EXTENSION IF EXISTS 'uuid-ossp';"
+                    f"DROP EXTENSION IF EXISTS \"uuid-ossp\";"
                 )
             except Exception as e:
                 log.warning(f"After shutdown hook failed {self}...")

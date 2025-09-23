@@ -1,5 +1,5 @@
 from database import pool_getter, _TaskDTO
-from models import _InstanceSupportsSequence, AddTaskModel, _TaskUpdateInfoDTO, _TaskDoneDTO, _ModelSupportsSequence
+from models import _InstanceSupportsSequence, AddTaskModel, _TaskUpdateInfoDTO, _TaskDoneDTO
 import typing
 from loguru import logger as log
 from uow import get_uow, UnitOfWork

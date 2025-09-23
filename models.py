@@ -1,6 +1,8 @@
 import datetime
 import typing
 import uuid
+
+import loguru
 from pydantic import BaseModel, Field
 import db.types as types
 
@@ -75,16 +77,31 @@ class _BaseAbstractModel:
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
         for attr, anno in cls.__annotations__.items():
+            loguru.logger.warning(
+                f"__init_subclass__ - setting {attr} to {anno}"
+            )
             if not hasattr(cls, attr):
                 if isinstance(anno, type):
-                    setattr(cls, attr, anno())
+                    instance = anno()
+                    setattr(cls, attr, instance)
+                    loguru.logger.warning(
+                        f"__init_subclass__ - set {attr} to {instance} (id: {id(instance)})"
+                    )
+            else:
+                loguru.logger.warning(
+                    f"__init_subclass__ - skipping {attr}, already set to {getattr(cls, attr)} (id: {id(getattr(cls, attr))})"
+                )
 
         def __sequence_fields__(cls) -> typing.Sequence[tuple[str, str]]:
-            return [
-                (attribute, getattr(cls, attr).__call__())
+            returning = [
+                (attribute, getattr(cls, attribute).__call__())
                 for attribute in cls.__annotations__
                 if callable(getattr(cls, attribute))
             ]
+            for attr in cls.__annotations__:
+                val = getattr(cls, attr)
+                loguru.logger.warning(f"{attr} -> {val} (id: {id(val)})")
+            return returning
 
         def __to_args__(self) -> typing.Tuple[
             typing.Any, ...
@@ -128,28 +145,28 @@ class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
     description: str
 
 class _TaskDoneDTO(_InstanceSupportsSequence):
-    id: types.Integer = types.Integer(index=True)
-    done: types.Boolean
+    id: int
+    done: bool
 
 class _CalendarNoteModel(_BaseAbstractModel):
-    id: int
+    id: types.Integer = types.Integer(index=True)
     # id: int = Field(
     #     default_factory=functools.partial(IDFactory.get, Models[CalendarNote]),
     # )
 
-    uid: uuid.UUID
+    uid: types.UUID = types.UUID(index=True)
     # uid: uuid.UUID = Field(
     #     default_factory=uuid.uuid4
     # )
 
-    date: datetime.datetime
+    date: types.DateTime
     # date: datetime.datetime = Field(
     #     default_factory=functools.partial(datetime.datetime.now, datetime.timezone.utc),
     # )
 
-    title: str
+    title: types.String
 
-    note: str
+    note: types.String
 
 class AddCalendarNoteModel(_InstanceSupportsSequence):
     pass # NotImplemented
