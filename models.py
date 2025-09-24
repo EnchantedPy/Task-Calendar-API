@@ -1,4 +1,5 @@
 import datetime
+import logging
 import typing
 import uuid
 
@@ -110,12 +111,33 @@ class _BaseAbstractModel:
                 item for item in self.__dict__.values()
             )
 
+        def __sequence_indexes__(cls) -> typing.Sequence[str] | typing.Iterable[str]:
+            returning = []
+            for attr, val in cls.__annotations__.items():
+                if val is not None and hasattr(cls, attr):
+                    instance = getattr(cls, attr)
+                    # loguru.logger.critical(
+                    #     f"{issubclass(val, types._AbstractDBType)}, {instance.__dict__}, {hasattr(instance, "__index__")}, {instance}, {isinstance(instance, types.Integer)}"
+                    # )
+                    # loguru.logger.critical(
+                    #     f"__sequence_indexes - {attr} -> {instance}, index: {instance.__index__()}"
+                    # )
+                    if instance.__index__():
+                        returning.append(attr)
+
+            # loguru.logger.warning(
+            #     f"__sequence_indexes__ - {returning}"
+            # )
+
+            return returning
+
+        cls.__sequence_indexes__ = classmethod(__sequence_indexes__)
         cls.__sequence_fields__ = classmethod(__sequence_fields__)
         cls.__to_args__ = property(__to_args__)
 
 class _TaskModel(_BaseAbstractModel):
     id: types.Integer = types.Integer(index=True)
-    title: types.String
+    title: types.String = types.String(index=True)
     description: types.String
     done: types.Boolean
     uid: types.UUID = types.UUID(index=True)

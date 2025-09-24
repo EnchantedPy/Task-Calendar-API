@@ -16,7 +16,10 @@ class ASGILifespan:
             tables=["tasks", "calendar_notes"],
             _models=[models._TaskModel, models._CalendarNoteModel]
         )
-        await __instance.run_post_init_hook()
+        await __instance.run_post_init_hook(
+            tables=["tasks", "calendar_notes"],
+            _models=[models._TaskModel, models._CalendarNoteModel]
+        )
 
     @staticmethod
     async def shutdown() -> None:

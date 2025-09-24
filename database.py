@@ -20,8 +20,9 @@ class AsyncPGPoolManager:
             cls.__instance.pool = await cls.__instance.__create_connection_pool()
         return cls.__instance
 
-    async def __create_connection_pool(self) -> asyncpg.pool.Pool:
-        return await asyncpg.create_pool(
+    @staticmethod
+    async def __create_connection_pool() -> asyncpg.pool.Pool:
+        pool = asyncpg.create_pool(
             user=settings.USER,
             password=settings.PASSWD,
             database=settings.DB,
@@ -30,12 +31,14 @@ class AsyncPGPoolManager:
             min_size=settings.MIN_POOL,
             max_size=settings.MAX_POOL,
         )
+        return await pool
 
     async def __aenter__(self) -> typing.Self:
         self.pool = await self.__create_connection_pool()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
+        # self.pool = None
         if exc_type:
             return False
         return True
@@ -75,7 +78,7 @@ class AsyncPGPoolManager:
         return arg, conventions[type_], self._get_constraints(arg)
 
     async def create_tables(self, tables: typing.Sequence[str] | typing.Iterable[str], _models: typing.Sequence[typing.Type[
-        models._BaseAbstractModel]]) -> bool | typing.NoReturn:
+        models._BaseAbstractModel]]) -> None | typing.NoReturn:
         async with self as conn:
             try:
                 for idx, table in enumerate(tables):
@@ -117,18 +120,38 @@ class AsyncPGPoolManager:
                 await conn.pool.execute(
                     f"CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
                 )
+                log.warning("Pre init hook completed successfully")
             except Exception as e:
                 log.warning(f"Pre init hook failed {self}...")
                 raise e
 
-    async def run_post_init_hook(self) -> None:
+    async def run_post_init_hook(self, tables: list[str], _models: list[typing.Type[models._BaseAbstractModel]]) -> None:
         async with self as conn:
             try:
-                pass
+                log.critical("Running post init hook")
                 # await conn.pool.execute(
                 #
                 # )
                 # CREATE INDEXes
+                for table, model in zip(tables, _models):
+                    self.log.warning(f"Running post init hook for table {table}...")
+                    indexes = model.__sequence_indexes__()
+
+                    for index in indexes:
+                        if index == "id" or index == "uid":
+                            continue
+                        self.log.critical("Inside index loop")
+                        self.log.critical(f"Got index field - {index}")
+                        stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index})"
+                        self.log.info(f"Index statement - {stmt}")
+                        await conn.pool.execute(stmt)
+
+                    # for index in _models[i].__sequence_indexes__():
+                    #     await conn.pool.execute(
+                    #         f"CREATE INDEX {index}_index ON {table} ({index})"
+                    #     )
+                    #     i += 1
+                log.warning("Post init hook completed successfully")
             except Exception as e:
                 log.warning(f"Post init hook failed {self}...")
                 raise e
@@ -139,6 +162,7 @@ class AsyncPGPoolManager:
                 await conn.pool.execute(
                     f"DROP EXTENSION IF EXISTS \"uuid-ossp\";"
                 )
+                log.warning("After shutdown hook completed successfully")
             except Exception as e:
                 log.warning(f"After shutdown hook failed {self}...")
                 raise e
