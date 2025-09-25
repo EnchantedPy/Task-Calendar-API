@@ -1,7 +1,7 @@
 import asyncpg
 
 import models
-from settings import settings
+from core.settings import settings
 import typing
 import uuid
 from loguru import logger as log
@@ -20,6 +20,10 @@ class AsyncPGPoolManager:
             cls.__instance.pool = await cls.__instance.__create_connection_pool()
         return cls.__instance
 
+    @classmethod
+    async def pool(cls) -> asyncpg.pool.Pool:
+        return cls.__instance.pool
+
     @staticmethod
     async def __create_connection_pool() -> asyncpg.pool.Pool:
         pool = asyncpg.create_pool(
@@ -37,11 +41,8 @@ class AsyncPGPoolManager:
         self.pool = await self.__create_connection_pool()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> bool:
-        # self.pool = None
-        if exc_type:
-            return False
-        return True
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.pool = None
 
     @staticmethod
     def _get_constraints(arg) -> typing.Sequence[str]:
@@ -129,10 +130,6 @@ class AsyncPGPoolManager:
         async with self as conn:
             try:
                 log.critical("Running post init hook")
-                # await conn.pool.execute(
-                #
-                # )
-                # CREATE INDEXes
                 for table, model in zip(tables, _models):
                     self.log.warning(f"Running post init hook for table {table}...")
                     indexes = model.__sequence_indexes__()
@@ -166,11 +163,6 @@ class AsyncPGPoolManager:
             except Exception as e:
                 log.warning(f"After shutdown hook failed {self}...")
                 raise e
-
-
-async def pool_getter() -> typing.AsyncGenerator[asyncpg.pool.Pool, None]:
-    mgr = await AsyncPGPoolManager.instance()
-    yield mgr.pool
 
 class _TaskDTO(typing.TypedDict):
     id: int
