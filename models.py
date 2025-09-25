@@ -1,104 +1,70 @@
 import typing
 
-import loguru
-from pydantic import BaseModel, Field
+from IPython.terminal.shortcuts.auto_match import auto_match_parens_raw_string
+from pydantic import BaseModel
 import db.types as types
+from loguru import logger as log
 
-class _InstanceSupportsSequence(BaseModel):
-    @property
-    def __sequence_fields__(self) -> typing.Sequence[str] | typing.Iterable[str]:
-        return [
-            name for name in self.__dict__.keys() if name != "id" or name != "uid"
-        ]
-
-    @property
-    def __to_args__(self) -> typing.Tuple[
-        typing.Any, ...
-    ]:
-        return tuple(
-            val for _, val in self.__dict__.items() if _ != "id" or _ != "uid"
-        )
-
-Task: typing.Literal["CalendarClass", "TaskClass"] = "TaskClass"
-
-CalendarNote: typing.Literal["CalendarClass", "TaskClass"] = "CalendarClass"
-
-Models: dict[
-    str,
-    typing.Literal[
-        "Task",
-        "CalendarNote"
-    ]
-] = {
-    "TaskClass": "Task",
-    "CalendarClass": "CalendarNote"
-}
-
-class IDFactory:
-    __models: typing.ClassVar[dict[str, int | None]] = {
-        model: None for model in Models.values()
-    }
-    id: typing.ClassVar[int | None] = None
+class BaseAbstractModel:
+    __tables: typing.ClassVar[list[str]]
+    __models: typing.ClassVar[list[typing.Type["BaseAbstractModel"]]]
+    __pre_assigned: typing.ClassVar[dict[str, str]] = {}
 
     @classmethod
-    def get(
-    cls,
-    model: typing.Literal[
-            "Task",
-            "CalendarNote"
-        ]
-    ) -> int:
-        if cls.__models[model] is None:
-            cls.__models[model] = 0
-        cls.__models[model] += 1
-        return cls.__models[model]
+    def tables(cls) -> list[str]:
+        return cls.__tables
 
+    @classmethod
+    def models(cls) -> list[typing.Type["BaseAbstractModel"]]:
+        return cls.__models
 
-# class _ModelSupportsSequence(BaseModel):
-#
-#     @classmethod
-#     def __sequence_fields__(cls) -> typing.Sequence[typing.Tuple[str, str]]:
-#         return [
-#             (name, typ.__name__.lower())
-#             for name, typ in cls.__annotations__.items()
-#         ]
-#
-#     @property
-#     def __to_args__(self) -> typing.Tuple[
-#         typing.Any, ...
-#     ]:
-#         return tuple(
-#             item for item in self.__dict__.values()
-#         )
+    @classmethod
+    def pre_assigned(cls) -> dict[str, str]:
+        return cls.__pre_assigned
 
-class _BaseAbstractModel:
+    @classmethod
+    def pre_assign(cls, k: str, v: str) -> None | bool:
+        """
+        Value here can't be overridden
+        """
+        if cls.__pre_assigned[k]:
+            return False
+        cls.__pre_assigned[k] = v
+        return None
+
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
         for attr, anno in cls.__annotations__.items():
-            loguru.logger.warning(
+            try:
+                if attr == "__table__":
+                    BaseAbstractModel.__tables.append(attr)
+                BaseAbstractModel.__models.append(cls)
+            except Exception as e:
+                raise e
+            log.warning(
                 f"__init_subclass__ - setting {attr} to {anno}"
             )
             if not hasattr(cls, attr):
                 if isinstance(anno, type):
                     instance = anno()
                     setattr(cls, attr, instance)
-                    loguru.logger.warning(
+                    log.warning(
                         f"__init_subclass__ - set {attr} to {instance} (id: {id(instance)})"
                     )
             else:
-                loguru.logger.warning(
+                log.warning(
                     f"__init_subclass__ - skipping {attr}, already set to {getattr(cls, attr)} (id: {id(getattr(cls, attr))})"
                 )
 
-        def __sequence_fields__(cls) -> typing.Sequence[tuple[str, str]]:
+        def __sequence_fields__(cls) -> typing.Sequence[tuple[str, types.AbstractDBType]]:
             returning = [
-                (attribute, getattr(cls, attribute).__call__())
+                (attribute, getattr(cls, attribute))
                 for attribute in cls.__annotations__
                 if callable(getattr(cls, attribute))
             ]
             for attr in cls.__annotations__:
                 val = getattr(cls, attr)
-                loguru.logger.warning(f"{attr} -> {val} (id: {id(val)})")
+                log.warning(f"{attr} -> {val} (id: {id(val)})")
             return returning
 
         def __to_args__(self) -> typing.Tuple[
@@ -113,18 +79,8 @@ class _BaseAbstractModel:
             for attr, val in cls.__annotations__.items():
                 if val is not None and hasattr(cls, attr):
                     instance = getattr(cls, attr)
-                    # loguru.logger.critical(
-                    #     f"{issubclass(val, types._AbstractDBType)}, {instance.__dict__}, {hasattr(instance, "__index__")}, {instance}, {isinstance(instance, types.Integer)}"
-                    # )
-                    # loguru.logger.critical(
-                    #     f"__sequence_indexes - {attr} -> {instance}, index: {instance.__index__()}"
-                    # )
                     if instance.__index__():
                         returning.append(attr)
-
-            # loguru.logger.warning(
-            #     f"__sequence_indexes__ - {returning}"
-            # )
 
             return returning
 
@@ -132,26 +88,49 @@ class _BaseAbstractModel:
         cls.__sequence_fields__ = classmethod(__sequence_fields__)
         cls.__to_args__ = property(__to_args__)
 
-class _TaskModel(_BaseAbstractModel):
-    id: types.Integer = types.Integer(index=True)
-    title: types.String = types.String(index=True)
-    description: types.String
-    done: types.Boolean
-    uid: types.UUID = types.UUID(index=True)
+class _TaskModel(BaseAbstractModel):
+    __table__ = "tasks"
 
-# class _TaskModel(_ModelSupportsSequence):
-#     id: int
-#     # id: int = Field(
-#     #     default_factory=functools.partial(IDFactory.get, Models[Task]),
-#     # )
-#     title: str
-#     description: str
-#     done: bool
-#
-#     uid: uuid.UUID
-#     # uid: uuid.UUID = Field(
-#     #     default_factory=uuid.uuid4
-#     # )
+    id: types.Integer = types.Integer(
+        autoincrement=True,
+        index=True,
+        unique=True,
+        nullable=False,
+        pk=True
+    )
+    title: types.String = types.String(
+        index=True,
+        unique=True,
+        nullable=False
+    )
+    description: types.String = types.String(
+        nullable=True
+    )
+    done: types.Boolean = types.Boolean(
+        default="false"
+    )
+    uid: types.UUID = types.UUID(
+        index=True,
+        unique=True,
+        nullable=False,
+        pk=True,
+        default="uuid_generate_v4()"
+    )
+
+class _InstanceSupportsSequence(BaseModel):
+    @property
+    def __sequence_fields__(self) -> typing.Sequence[str] | typing.Iterable[str]:
+        return [
+            attr for attr in self.__dict__.keys() if attr not in BaseAbstractModel.pre_assigned()
+        ]
+
+    @property
+    def __to_args__(self) -> typing.Tuple[
+        typing.Any, ...
+    ]:
+        return tuple(
+            val for _, val in self.__dict__.items() if _ not in BaseAbstractModel.pre_assigned()
+        )
 
 class AddTaskModel(_InstanceSupportsSequence):
     title: str
@@ -166,25 +145,31 @@ class _TaskDoneDTO(_InstanceSupportsSequence):
     id: int
     done: bool
 
-class _CalendarNoteModel(_BaseAbstractModel):
-    id: types.Integer = types.Integer(index=True)
-    # id: int = Field(
-    #     default_factory=functools.partial(IDFactory.get, Models[CalendarNote]),
-    # )
+class _CalendarNoteModel(BaseAbstractModel):
+    __table__ = "calendar_notes"
 
-    uid: types.UUID = types.UUID(index=True)
-    # uid: uuid.UUID = Field(
-    #     default_factory=uuid.uuid4
-    # )
-
-    date: types.DateTime
-    # date: datetime.datetime = Field(
-    #     default_factory=functools.partial(datetime.datetime.now, datetime.timezone.utc),
-    # )
-
-    title: types.String
-
-    note: types.String
+    id: types.Integer = types.Integer(
+        index=True,
+        unique=True,
+        nullable=False,
+        autoincrement=True,
+        pk=True
+    )
+    uid: types.UUID = types.UUID(
+        index=True,
+        unique=True,
+        nullable=False,
+        pk=True
+    )
+    date: types.DateTime = types.DateTime(
+        default="now()"
+    )
+    title: types.String = types.String(
+        unique=True
+    )
+    note: types.String = types.String(
+        nullable=True
+    )
 
 class AddCalendarNoteModel(_InstanceSupportsSequence):
     pass # NotImplemented

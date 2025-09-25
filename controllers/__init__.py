@@ -1,1 +1,1 @@
-from .tasks import TaskController
+from .task import TaskController
