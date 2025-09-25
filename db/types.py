@@ -1,7 +1,6 @@
 """
 Boolean, String, Integer, UUID, DateTime
 """
-from loguru import logger as log
 import typing
 
 class _AbstractDBType:
@@ -16,9 +15,6 @@ class _AbstractDBType:
 
         def __construct_call__(subclass_name: str) -> typing.Callable[[typing.Self], str]:
             def __call__(self) -> str:
-                log.warning(
-                    f"Returned {subclass_name} out of __call__"
-                )
                 return subclass_name
             return __call__
 

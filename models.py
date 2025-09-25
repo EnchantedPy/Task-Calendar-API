@@ -142,7 +142,6 @@ class _TaskModel(_BaseAbstractModel):
     done: types.Boolean
     uid: types.UUID = types.UUID(index=True)
 
-
 # class _TaskModel(_ModelSupportsSequence):
 #     id: int
 #     # id: int = Field(

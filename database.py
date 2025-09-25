@@ -14,7 +14,7 @@ class AsyncPGPoolManager:
         self.log = log
 
     @classmethod
-    async def get_instance(cls) -> "AsyncPGPoolManager":
+    async def instance(cls) -> "AsyncPGPoolManager":
         if cls.__instance is None:
             cls.__instance = cls()
             cls.__instance.pool = await cls.__instance.__create_connection_pool()
@@ -169,13 +169,8 @@ class AsyncPGPoolManager:
 
 
 async def pool_getter() -> typing.AsyncGenerator[asyncpg.pool.Pool, None]:
-    mgr = await AsyncPGPoolManager.get_instance()
+    mgr = await AsyncPGPoolManager.instance()
     yield mgr.pool
-
-async def mgr_getter() -> typing.AsyncGenerator[AsyncPGPoolManager, None]:
-    mgr = await AsyncPGPoolManager.get_instance()
-    yield mgr
-
 
 class _TaskDTO(typing.TypedDict):
     id: int

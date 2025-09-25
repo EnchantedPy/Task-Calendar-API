@@ -3,32 +3,7 @@ from litestar import Litestar, get, post, delete, patch, Controller
 from settings import settings
 from repository import CoreDBRepository, _TaskDTO
 from pydantic import BaseModel, Field
-import models
-
-class ASGILifespan:
-
-    @staticmethod
-    async def startup() -> None:
-        from database import mgr_getter
-        __instance = await mgr_getter().__anext__()
-        await __instance.run_pre_init_hook()
-        await __instance.create_tables(
-            tables=["tasks", "calendar_notes"],
-            _models=[models._TaskModel, models._CalendarNoteModel]
-        )
-        await __instance.run_post_init_hook(
-            tables=["tasks", "calendar_notes"],
-            _models=[models._TaskModel, models._CalendarNoteModel]
-        )
-
-    @staticmethod
-    async def shutdown() -> None:
-        from database import mgr_getter
-        __instance = await mgr_getter().__anext__()
-        await __instance.drop_tables(
-            tables=["tasks", "calendar_notes"],
-        )
-        await __instance.run_after_shutdown_hook()
+from core.lifespan import ASGILifespan
 
 class TaskGet(BaseModel):
     id: int = Field(
