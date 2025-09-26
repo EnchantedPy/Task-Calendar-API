@@ -82,23 +82,30 @@ class AsyncPGPoolManager:
             self,
             anno_cls_instance: types.AbstractDBType
     ) -> str:
-        return f"{"SERIAL" if anno_cls_instance.__autoincrement__() else ""} {"PRIMARY KEY" if anno_cls_instance.__pk__() else ""} {"UNIQUE" if anno_cls_instance.__unique__() else ""} {"NOT NULL" if anno_cls_instance.__nullable__() else ""} {"DEFAULT"+anno_cls_instance.__default__() if anno_cls_instance.__default__() else ""}"
+        val = anno_cls_instance.__default__()
+        default = f"DEFAULT \"{val}\"" if val else ""
+        query = f"{"SERIAL" if anno_cls_instance.__autoincrement__() else ""} {"PRIMARY KEY" if anno_cls_instance.__pk__() else ""} {"UNIQUE" if anno_cls_instance.__unique__() else ""} {"NOT NULL" if anno_cls_instance.__nullable__() else ""} {default}"
+        self.log.critical(query)
+        return query
 
     def _get_columns_based_on_attrs_and_type_instances(
             self,
             _model: typing.Type[BaseAbstractModel]
     ) -> typing.Sequence[str]:
+        self.log.critical("Getting columns based on attrs and type")
         conventions: dict[str, str] = {
             "Integer": "INTEGER",
             "String": "TEXT",
             "Boolean": "BOOLEAN",
             "UUID": "UUID",
-            "DateTime": "TIMESTAMPTZ"
+            "DateTime": "TIMESTAMPTZ",
+            "SERIAL": "SERIAL"
         }
         returning = []
         columns: typing.Sequence[tuple[str, types.AbstractDBType]] = _model.__sequence_fields__()
         for column in columns:
-            returning.append(f"{column[0]} {conventions[column[1].__class__.__name__]} {self._get_constraints_based_on_class_db_type(column[1])}") # may coz issues, change to .__call__()
+            self.log.critical(f"Return type {column[1].__autoincrement__()}")
+            returning.append(f"{column[0]} {conventions[column[1].__call__()]} {self._get_constraints_based_on_class_db_type(column[1])}") # may coz issues, change to .__call__()
         return returning
 
     async def create_tables(
@@ -107,8 +114,17 @@ class AsyncPGPoolManager:
             _models: typing.Sequence[typing.Type[BaseAbstractModel]]
     ) -> None:
         async with self as conn:
+            self.log.critical(
+                "Create tables hook triggered"
+            )
+            self.log.critical(
+                f"{tables} {_models}"
+            )
             try:
                 for idx, table in enumerate(tables):
+                    self.log.critical(
+                        "Inside for TABLE loop"
+                    )
                     self.log.warning(f"Creating table {table}...")
                     columns = [
                         column for column in self._get_columns_based_on_attrs_and_type_instances(_models[idx])
@@ -119,12 +135,16 @@ class AsyncPGPoolManager:
                     #     ])}' for attr, type_, constraints in [self._get_attr_type_constraints(arg, typ) for arg, typ in _models[idx].__sequence_fields__()]
                     # ]
                     self.log.warning(columns)
-                    await conn.pool.execute(
+                    query = (
                         f"""
                             CREATE TABLE IF NOT EXISTS {table} (
                                 {", ".join(columns)}
                             );
                         """
+                    )
+                    self.log.critical(query)
+                    await conn.pool.execute(
+                        query
                     )
                     self.log.warning(f"Created table {table}")
             except Exception as e:
@@ -165,8 +185,6 @@ class AsyncPGPoolManager:
                     indexes = model.__sequence_indexes__()
 
                     for index in indexes:
-                        if index == "id" or index == "uid":
-                            continue
                         self.log.critical("Inside index loop")
                         self.log.critical(f"Got index field - {index}")
                         stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index})"

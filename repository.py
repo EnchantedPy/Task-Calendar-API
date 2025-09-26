@@ -1,25 +1,26 @@
-from database import pool_getter, _TaskDTO
+from database import _TaskDTO
 from models import _InstanceSupportsSequence, AddTaskModel, _TaskUpdateInfoDTO, _TaskDoneDTO
 import typing
 from loguru import logger as log
-from uow import get_uow, UnitOfWork
+from uow import UnitOfWork
 
 class CoreDBRepository:
-    _uow: typing.ClassVar[typing.Callable[[], typing.AsyncGenerator[UnitOfWork | None]]] = get_uow
+    _uow: typing.ClassVar[typing.Callable[[], UnitOfWork | None]] = UnitOfWork.instance
 
     def __init__(self) -> None:
         # self.pool_getter: typing.Callable[typing.AsyncGenerator[asyncpg.pool.Pool, None]] = pool_getter
-        self.uow: typing.Callable[[], typing.AsyncGenerator[UnitOfWork, None]] = get_uow
+        self.uow: typing.Callable[[], UnitOfWork | None] = UnitOfWork.instance
         self.model: typing.Type[_InstanceSupportsSequence] = AddTaskModel
         self.return_dto: typing.Type[typing.TypedDict] = _TaskDTO
         self.log = log
         self.update_done_dto: typing.Type[_InstanceSupportsSequence] = _TaskDoneDTO
         self.update_info_dto: typing.Type[_InstanceSupportsSequence] = _TaskUpdateInfoDTO
 
-    async def transaction(self) -> UnitOfWork | None:
-        async for uow in self.__class__._uow():
-            return uow
-        return None
+    async def transaction(self) -> UnitOfWork:
+        # async for uow in self.__class__._uow():
+        #     return uow
+        # return None
+        return self.__class__._uow()
 
     async def add(
             self,

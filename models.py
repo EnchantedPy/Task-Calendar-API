@@ -1,44 +1,67 @@
 import typing
-
-from IPython.terminal.shortcuts.auto_match import auto_match_parens_raw_string
 from pydantic import BaseModel
 import db.types as types
 from loguru import logger as log
 
 class BaseAbstractModel:
-    __tables: typing.ClassVar[list[str]]
-    __models: typing.ClassVar[list[typing.Type["BaseAbstractModel"]]]
-    __pre_assigned: typing.ClassVar[dict[str, str]] = {}
+    _tables: typing.ClassVar[list[str]] = []
+    _models: typing.ClassVar[list[typing.Type["BaseAbstractModel"]]] = []
+    # __pre_assigned: typing.ClassVar[dict[str, str]] = {}
+    _pre_assigned: typing.ClassVar[list[str]] = []
 
     @classmethod
     def tables(cls) -> list[str]:
-        return cls.__tables
+        return cls._tables
+
+    @classmethod
+    def assign_table(cls, table: str) -> None:
+        cls._tables.append(table)
 
     @classmethod
     def models(cls) -> list[typing.Type["BaseAbstractModel"]]:
-        return cls.__models
+        return cls._models
 
     @classmethod
-    def pre_assigned(cls) -> dict[str, str]:
-        return cls.__pre_assigned
+    def assign_model(cls, model: typing.Type["BaseAbstractModel"]) -> None:
+        cls._models.append(model)
 
     @classmethod
-    def pre_assign(cls, k: str, v: str) -> None | bool:
-        """
-        Value here can't be overridden
-        """
-        if cls.__pre_assigned[k]:
-            return False
-        cls.__pre_assigned[k] = v
-        return None
+    def pre_assigned(cls) -> list[str]:
+        return cls._pre_assigned
+
+    @classmethod
+    def pre_assign(cls, attr: str) -> None:
+        cls._pre_assigned.append(attr)
+
+    # @classmethod
+    # def pre_assigned(cls) -> dict[str, str]:
+    #     return cls.__pre_assigned
+
+    # @classmethod
+    # def pre_assign(cls, k: str, v: str) -> None | bool:
+    #     """
+    #     Value here can't be overridden
+    #     """
+    #     if cls.__pre_assigned[k]:
+    #         return False
+    #     cls.__pre_assigned[k] = v
+    #     return None
 
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
         for attr, anno in cls.__annotations__.items():
             try:
+                log.warning(
+                    "Try before adding attr to table"
+                )
                 if attr == "__table__":
-                    BaseAbstractModel.__tables.append(attr)
-                BaseAbstractModel.__models.append(cls)
+                    log.warning(
+                        "Setting table to ClassVar"
+                    )
+                    BaseAbstractModel.assign_table(getattr(cls, attr))
+                    BaseAbstractModel.assign_model(cls)
+                    continue
+                BaseAbstractModel.assign_model(cls)
             except Exception as e:
                 raise e
             log.warning(
@@ -55,6 +78,8 @@ class BaseAbstractModel:
                 log.warning(
                     f"__init_subclass__ - skipping {attr}, already set to {getattr(cls, attr)} (id: {id(getattr(cls, attr))})"
                 )
+                if getattr(cls, attr).__unique__() or getattr(cls, attr).__pk__():
+                    BaseAbstractModel.pre_assign(attr)
 
         def __sequence_fields__(cls) -> typing.Sequence[tuple[str, types.AbstractDBType]]:
             returning = [
@@ -78,6 +103,8 @@ class BaseAbstractModel:
             returning = []
             for attr, val in cls.__annotations__.items():
                 if val is not None and hasattr(cls, attr):
+                    if attr in BaseAbstractModel.pre_assigned():
+                        continue
                     instance = getattr(cls, attr)
                     if instance.__index__():
                         returning.append(attr)
@@ -89,7 +116,7 @@ class BaseAbstractModel:
         cls.__to_args__ = property(__to_args__)
 
 class _TaskModel(BaseAbstractModel):
-    __table__ = "tasks"
+    __table__: str = "tasks"
 
     id: types.Integer = types.Integer(
         autoincrement=True,
@@ -99,9 +126,10 @@ class _TaskModel(BaseAbstractModel):
         pk=True
     )
     title: types.String = types.String(
-        index=True,
-        unique=True,
-        nullable=False
+        index=True, # remove later
+        unique=True, # remove later
+        nullable=False,
+        default="New task"
     )
     description: types.String = types.String(
         nullable=True
@@ -113,7 +141,6 @@ class _TaskModel(BaseAbstractModel):
         index=True,
         unique=True,
         nullable=False,
-        pk=True,
         default="uuid_generate_v4()"
     )
 
@@ -159,14 +186,14 @@ class _CalendarNoteModel(BaseAbstractModel):
         index=True,
         unique=True,
         nullable=False,
-        pk=True
     )
     date: types.DateTime = types.DateTime(
         default="now()"
     )
     title: types.String = types.String(
-        unique=True
+        default="New note"
     )
+
     note: types.String = types.String(
         nullable=True
     )

@@ -28,7 +28,7 @@ class TaskMarkDone(BaseModel):
 class TaskController(Controller):
     path = "/tasks"
     dependencies = {
-        "repo": Provide(lambda: CoreDBRepository()),
+        "repo": Provide(lambda: CoreDBRepository(), sync_to_thread=False),
     }
 
     # to POST
