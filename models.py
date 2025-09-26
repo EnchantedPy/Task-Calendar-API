@@ -1,13 +1,15 @@
 import typing
 from pydantic import BaseModel
 import db.types as types
-from loguru import logger as log
 
 class BaseAbstractModel:
     _tables: typing.ClassVar[list[str]] = []
     _models: typing.ClassVar[list[typing.Type["BaseAbstractModel"]]] = []
-    # __pre_assigned: typing.ClassVar[dict[str, str]] = {}
     _pre_assigned: typing.ClassVar[list[str]] = []
+
+    @classmethod
+    def __cls_repr__(cls) -> str:
+        return cls.__name__
 
     @classmethod
     def tables(cls) -> list[str]:
@@ -32,20 +34,6 @@ class BaseAbstractModel:
     @classmethod
     def pre_assign(cls, attr: str) -> None:
         cls._pre_assigned.append(attr)
-
-    # @classmethod
-    # def pre_assigned(cls) -> dict[str, str]:
-    #     return cls.__pre_assigned
-
-    # @classmethod
-    # def pre_assign(cls, k: str, v: str) -> None | bool:
-    #     """
-    #     Value here can't be overridden
-    #     """
-    #     if cls.__pre_assigned[k]:
-    #         return False
-    #     cls.__pre_assigned[k] = v
-    #     return None
 
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
@@ -72,7 +60,6 @@ class BaseAbstractModel:
             ]
             for attr in cls.__annotations__:
                 val = getattr(cls, attr)
-                log.warning(f"{attr} -> {val} (id: {id(val)})")
             return returning
 
         def __to_args__(self) -> typing.Tuple[

@@ -1,14 +1,11 @@
-from database import _TaskDTO
+from db.manager import _TaskDTO
 from models import _InstanceSupportsSequence, AddTaskModel, _TaskUpdateInfoDTO, _TaskDoneDTO
 import typing
 from loguru import logger as log
 from uow import UnitOfWork
 
 class CoreDBRepository:
-    _uow: typing.ClassVar[typing.Callable[[], UnitOfWork | None]] = UnitOfWork.instance
-
     def __init__(self) -> None:
-        # self.pool_getter: typing.Callable[typing.AsyncGenerator[asyncpg.pool.Pool, None]] = pool_getter
         self.uow: typing.Callable[[], UnitOfWork | None] = UnitOfWork.instance
         self.model: typing.Type[_InstanceSupportsSequence] = AddTaskModel
         self.return_dto: typing.Type[typing.TypedDict] = _TaskDTO
@@ -17,10 +14,7 @@ class CoreDBRepository:
         self.update_info_dto: typing.Type[_InstanceSupportsSequence] = _TaskUpdateInfoDTO
 
     async def transaction(self) -> UnitOfWork:
-        # async for uow in self.__class__._uow():
-        #     return uow
-        # return None
-        return self.__class__._uow()
+        return self.uow()
 
     async def add(
             self,
@@ -29,8 +23,8 @@ class CoreDBRepository:
         async with await self.transaction() as uow:
             placeholder_list = [f"${i+1}" for i in range(len(task.__to_args__))]
             query = f"INSERT INTO tasks ({", ".join(field for field in task.__sequence_fields__)}) VALUES ({", ".join(placeholder_list)}) RETURNING id"
-            self.log.warning(query)
-            self.log.warning(task.__to_args__)
+            # self.log.warning(query)
+            # self.log.warning(task.__to_args__)
             serial = await uow.fetchrow(
                     query,
                 *task.__to_args__
@@ -81,7 +75,7 @@ class CoreDBRepository:
                         f"{seq[i]}=${i+2}" for i in range(len(seq))
                     ]
                 )
-                self.log.warning(f"SET = {set_}")
+                # self.log.warning(f"SET = {set_}")
                 await uow.execute(
                     f"UPDATE tasks SET {set_} WHERE id=$1",
                     *task.__to_args__

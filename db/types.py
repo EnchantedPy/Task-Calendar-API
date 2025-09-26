@@ -1,5 +1,4 @@
 import typing
-from loguru import logger as log
 
 
 class AbstractDBType:
@@ -89,9 +88,7 @@ class Integer(AbstractDBType):
 
     def __call__(self) -> str:
         if self._autoincrement:
-            log.critical("Returned SERIAL")
             return "SERIAL"
-        log.critical("Returned INTEGER")
         return "Integer"
 
 

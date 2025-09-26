@@ -1,4 +1,4 @@
-from database import AsyncPGPoolManager
+from db.manager import AsyncPGPoolManager
 from models import BaseAbstractModel
 from db.config import DBConfig
 

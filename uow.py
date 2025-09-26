@@ -1,5 +1,5 @@
 import asyncpg
-from database import AsyncPGPoolManager
+from db.manager import AsyncPGPoolManager
 import typing
 
 __all__ = (
