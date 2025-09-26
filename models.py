@@ -49,37 +49,20 @@ class BaseAbstractModel:
 
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
+
+        BaseAbstractModel.assign_table(getattr(cls, '__table__'))
+        BaseAbstractModel.assign_model(cls)
+
         for attr, anno in cls.__annotations__.items():
-            try:
-                log.warning(
-                    "Try before adding attr to table"
-                )
-                if attr == "__table__":
-                    log.warning(
-                        "Setting table to ClassVar"
-                    )
-                    BaseAbstractModel.assign_table(getattr(cls, attr))
-                    BaseAbstractModel.assign_model(cls)
-                    continue
-                BaseAbstractModel.assign_model(cls)
-            except Exception as e:
-                raise e
-            log.warning(
-                f"__init_subclass__ - setting {attr} to {anno}"
-            )
-            if not hasattr(cls, attr):
-                if isinstance(anno, type):
-                    instance = anno()
-                    setattr(cls, attr, instance)
-                    log.warning(
-                        f"__init_subclass__ - set {attr} to {instance} (id: {id(instance)})"
-                    )
+            existing_val = getattr(cls, attr, None)
+            if isinstance(existing_val, anno):
+                pass
             else:
-                log.warning(
-                    f"__init_subclass__ - skipping {attr}, already set to {getattr(cls, attr)} (id: {id(getattr(cls, attr))})"
-                )
-                if getattr(cls, attr).__unique__() or getattr(cls, attr).__pk__():
-                    BaseAbstractModel.pre_assign(attr)
+                field_instance = anno()
+                setattr(cls, attr, field_instance)
+
+            if getattr(cls, attr).__unique__() or getattr(cls, attr).__pk__():
+                BaseAbstractModel.pre_assign(attr)
 
         def __sequence_fields__(cls) -> typing.Sequence[tuple[str, types.AbstractDBType]]:
             returning = [
@@ -105,6 +88,8 @@ class BaseAbstractModel:
                 if val is not None and hasattr(cls, attr):
                     if attr in BaseAbstractModel.pre_assigned():
                         continue
+                    elif attr == "__table__":
+                        continue
                     instance = getattr(cls, attr)
                     if instance.__index__():
                         returning.append(attr)
@@ -116,7 +101,7 @@ class BaseAbstractModel:
         cls.__to_args__ = property(__to_args__)
 
 class _TaskModel(BaseAbstractModel):
-    __table__: str = "tasks"
+    __table__ = "tasks"
 
     id: types.Integer = types.Integer(
         autoincrement=True,

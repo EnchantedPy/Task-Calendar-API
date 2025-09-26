@@ -48,7 +48,8 @@ class AbstractDBType:
                 return subclass_name
             return __call__
 
-        cls.__call__ = __construct_call__(cls.__name__)
+        if "__call__" not in cls.__dict__:
+            cls.__call__ = __construct_call__(cls.__name__)
 
 
 class String(AbstractDBType):

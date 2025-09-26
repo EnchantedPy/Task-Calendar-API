@@ -83,8 +83,11 @@ class AsyncPGPoolManager:
             anno_cls_instance: types.AbstractDBType
     ) -> str:
         val = anno_cls_instance.__default__()
-        default = f"DEFAULT \"{val}\"" if val else ""
-        query = f"{"SERIAL" if anno_cls_instance.__autoincrement__() else ""} {"PRIMARY KEY" if anno_cls_instance.__pk__() else ""} {"UNIQUE" if anno_cls_instance.__unique__() else ""} {"NOT NULL" if anno_cls_instance.__nullable__() else ""} {default}"
+        if anno_cls_instance.__class__.__name__ == "String":
+            default = f"DEFAULT \'{val}\'" if val else ""
+        else:
+            default = f"DEFAULT {val}" if val else ""
+        query = f"{"PRIMARY KEY" if anno_cls_instance.__pk__() else ""} {"UNIQUE" if anno_cls_instance.__unique__() else ""} {"NOT NULL" if anno_cls_instance.__nullable__() else ""} {default}"
         self.log.critical(query)
         return query
 
@@ -114,6 +117,7 @@ class AsyncPGPoolManager:
             _models: typing.Sequence[typing.Type[BaseAbstractModel]]
     ) -> None:
         async with self as conn:
+            self.log.critical(f"Tables: {tables}")
             self.log.critical(
                 "Create tables hook triggered"
             )
