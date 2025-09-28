@@ -6,6 +6,7 @@ class BaseAbstractModel:
     _tables: typing.ClassVar[list[str]] = []
     _models: typing.ClassVar[list[typing.Type["BaseAbstractModel"]]] = []
     _pre_assigned: typing.ClassVar[list[str]] = []
+    __table__: typing.ClassVar[str | None] = None
 
     @classmethod
     def __cls_repr__(cls) -> str:
@@ -37,6 +38,9 @@ class BaseAbstractModel:
 
     def __init_subclass__(cls, **kw) -> None:
         super().__init_subclass__(**kw)
+
+        if not getattr(cls, "__table__", None):
+            raise AttributeError("Model should have __table__ classvar")
 
         BaseAbstractModel.assign_table(getattr(cls, '__table__'))
         BaseAbstractModel.assign_model(cls)
@@ -116,33 +120,21 @@ class _TaskModel(BaseAbstractModel):
         default="uuid_generate_v4()"
     )
 
-class _InstanceSupportsSequence(BaseModel):
-    @property
-    def __sequence_fields__(self) -> typing.Sequence[str] | typing.Iterable[str]:
-        return [
-            attr for attr in self.__dict__.keys() if attr not in BaseAbstractModel.pre_assigned()
-        ]
-
-    @property
-    def __to_args__(self) -> typing.Tuple[
-        typing.Any, ...
-    ]:
-        return tuple(
-            val for _, val in self.__dict__.items() if _ not in BaseAbstractModel.pre_assigned()
-        )
-
-class AddTaskModel(_InstanceSupportsSequence):
-    title: str
-    description: str
-
-class _TaskUpdateInfoDTO(_InstanceSupportsSequence):
-    id: int
-    title: str
-    description: str
-
-class _TaskDoneDTO(_InstanceSupportsSequence):
-    id: int
-    done: bool
+#
+# class InstanceSupportsSequence(BaseModel):
+#     @property
+#     def __sequence_fields__(self) -> typing.Sequence[str] | typing.Iterable[str]:
+#         return [
+#             attr for attr in self.__dict__.keys() if attr not in BaseAbstractModel.pre_assigned()
+#         ]
+#
+#     @property
+#     def __to_args__(self) -> typing.Tuple[
+#         typing.Any, ...
+#     ]:
+#         return tuple(
+#             val for _, val in self.__dict__.items() if _ not in BaseAbstractModel.pre_assigned()
+#         )
 
 class _CalendarNoteModel(BaseAbstractModel):
     __table__ = "calendar_notes"
@@ -169,6 +161,3 @@ class _CalendarNoteModel(BaseAbstractModel):
     note: types.String = types.String(
         nullable=True
     )
-
-class AddCalendarNoteModel(_InstanceSupportsSequence):
-    pass # NotImplemented

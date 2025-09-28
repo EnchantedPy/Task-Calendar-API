@@ -1,2 +1,1 @@
-generate .sql files to exec hooks
-gen UPDATE query in model
+generate .sql files to exec hooks and for cli migrate

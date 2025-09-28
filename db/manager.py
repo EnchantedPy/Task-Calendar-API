@@ -2,7 +2,6 @@ import asyncpg
 from models import BaseAbstractModel
 from core.settings import settings
 import typing
-import uuid
 from loguru import logger as log
 from db.config import DBConfig
 import db.types as types
@@ -11,19 +10,21 @@ class AsyncPGPoolManager:
     __instance: typing.ClassVar["AsyncPGPoolManager | None"] = None
 
     def __init__(self) -> None:
-        self.pool: asyncpg.pool.Pool | None = None
+        self._pool: asyncpg.pool.Pool | None = None
         self.log = log
 
     @classmethod
     async def instance(cls) -> "AsyncPGPoolManager":
-        if cls.__instance is None:
+        if not cls.__instance:
             cls.__instance = cls()
-            cls.__instance.pool = await cls.__instance.__create_connection_pool()
+            cls.__instance._pool = await cls.__instance.__create_connection_pool()
+            log.warning(cls.__instance._pool)
+        log.warning(cls.__instance)
         return cls.__instance
 
     @classmethod
     async def pool(cls) -> asyncpg.pool.Pool:
-        return cls.__instance.pool
+        return cls.__instance._pool
 
     @staticmethod
     async def __create_connection_pool() -> asyncpg.pool.Pool:
@@ -39,7 +40,7 @@ class AsyncPGPoolManager:
         return await pool
 
     async def __aenter__(self) -> typing.Self:
-        self.pool = await self.__create_connection_pool()
+        self._pool = await self.__create_connection_pool()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -110,7 +111,7 @@ class AsyncPGPoolManager:
                         """
                     )
                     # self.log.critical(query)
-                    await conn.pool.execute(
+                    await conn._pool.execute(
                         query
                     )
                     self.log.warning(f"Created table {table}")
@@ -123,7 +124,7 @@ class AsyncPGPoolManager:
             try:
                 for table in tables:
                     self.log.warning(f"Dropping table {table}...")
-                    await conn.pool.execute(
+                    await conn._pool.execute(
                         f"DROP TABLE IF EXISTS {table}"
                     )
                     self.log.warning(f"Dropped table {table}")
@@ -140,7 +141,7 @@ class AsyncPGPoolManager:
                     self.log.warning(
                         f"Creating extensions {extension!r}"
                     )
-                    await conn.pool.execute(
+                    await conn._pool.execute(
                         f"CREATE EXTENSION IF NOT EXISTS \"{extension}\";"
                     )
                 log.warning("Pre init hook completed successfully")
@@ -160,7 +161,7 @@ class AsyncPGPoolManager:
                             f"Creating index {index} in table {table}..."
                         )
                         stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index})"
-                        await conn.pool.execute(stmt)
+                        await conn._pool.execute(stmt)
 
                 log.warning("Post init hook completed successfully")
             except Exception as e:
@@ -175,17 +176,10 @@ class AsyncPGPoolManager:
                     self.log.warning(
                         f"Dropping extension {extension!r}"
                     )
-                    await conn.pool.execute(
+                    await conn._pool.execute(
                         f"DROP EXTENSION IF EXISTS \"{extension}\";"
                     )
                 log.warning("After shutdown hook completed successfully")
             except Exception as e:
                 log.warning(f"After shutdown hook failed...")
                 raise e
-
-class _TaskDTO(typing.TypedDict):
-    id: int
-    title: str
-    description: str
-    done: bool
-    uid: uuid.UUID

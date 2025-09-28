@@ -1,7 +1,9 @@
 from litestar import Controller, get, post, delete, patch
 from litestar.di import Provide
-from repository import CoreDBRepository, _TaskDTO
+from repository import TaskRepository
+from dto import TaskDTO, AddTaskDTO, TaskUpdateDTO
 from pydantic import BaseModel, Field
+from models import _TaskModel
 
 class TaskGet(BaseModel):
     id: int = Field(
@@ -28,41 +30,43 @@ class TaskMarkDone(BaseModel):
 class TaskController(Controller):
     path = "/tasks"
     dependencies = {
-        "repo": Provide(lambda: CoreDBRepository(), sync_to_thread=False),
+        "repo": Provide(lambda: TaskRepository(_TaskModel), sync_to_thread=False),
     }
 
     # to POST
     @get("/add", tags=["DB"])
-    async def add_task(self, repo: CoreDBRepository) -> _TaskDTO:
+    async def add_task(self, repo: TaskRepository) -> TaskDTO:
         return await repo.add(
-            repo.model(
+            AddTaskDTO(
                 title="Some task",
                 description="Some description",
             )
         )
 
     @post("/get", tags=["DB"])
-    async def get_task(self, data: TaskGet, repo: CoreDBRepository) -> _TaskDTO:
+    async def get_task(self, data: TaskGet, repo: TaskRepository) -> TaskDTO:
         return await repo.get(
             data.id
         )
 
     @delete("/delete", tags=["DB"], status_code=200)
-    async def delete_task(self, data: TaskDel, repo: CoreDBRepository) -> _TaskDTO:
+    async def delete_task(self, data: TaskDel, repo: TaskRepository) -> TaskDTO:
         return await repo.delete(
             data.id
         )
 
     @patch("/update", tags=["DB"])
-    async def update_task(self, data: TaskUpdateInfo, repo: CoreDBRepository) -> _TaskDTO:
+    async def update_task(self, data: TaskUpdateInfo, repo: TaskRepository) -> TaskDTO:
         return await repo.update(
-            repo.update_info_dto(**data.model_dump())
+                TaskUpdateDTO(
+                    **data.model_dump()
+                )
         )
 
     @patch("/done", tags=["DB"])
-    async def done_task(self, data: TaskMarkDone, repo: CoreDBRepository) -> _TaskDTO:
+    async def done_task(self, data: TaskMarkDone, repo: TaskRepository) -> TaskDTO:
         dict_ = dict(**data.model_dump())
         dict_["done"] = True
         return await repo.update(
-            repo.update_done_dto(**dict_)
+            TaskUpdateDTO(**dict_)
         )
