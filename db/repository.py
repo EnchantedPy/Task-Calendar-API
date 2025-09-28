@@ -1,8 +1,8 @@
 from dto import TaskDTO, TaskUpdateDTO, AddTaskDTO
 import typing
 from loguru import logger as log
-from uow import UnitOfWork
-from models import BaseAbstractModel
+from db.uow import UnitOfWork
+from db.models import BaseAbstractModel
 
 class BaseRepository:
     def __init__(
@@ -61,13 +61,10 @@ class TaskRepository(BaseRepository):
     ) -> TaskDTO:
         async with await self.transaction() as uow:
             row = await uow.fetchrow(
-                    f"SELECT * FROM {self.table} WHERE id=$1",
+                    f"DELETE FROM {self.table} WHERE id=$1 RETURNING id;",
                     task_id
             )
-            await uow.execute(
-                    f"DELETE FROM {self.table} WHERE id=$1",
-                    task_id
-            )
+        log.warning(row.__repr__())
         return self.return_dto(**row)
 
     async def update(
@@ -76,7 +73,7 @@ class TaskRepository(BaseRepository):
     ) -> TaskDTO:
         async with await self.transaction() as uow:
                 await uow.execute(
-                    f"UPDATE {self.table} SET (title=$2, description=$3, done=$4) WHERE id=$1",
+                    f"UPDATE {self.table} SET title=$2, description=$3, done=$4 WHERE id=$1",
                     task.id, task.title, task.description, task.done
                 )
                 row = await uow.fetchrow(

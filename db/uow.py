@@ -22,7 +22,7 @@ class UnitOfWork:
 
     async def __aenter__(self) -> asyncpg.Connection:
         self.mgr = await AsyncPGPoolManager.instance()
-        self.conn = await self.mgr._pool.acquire()
+        self.conn = await self.mgr.pool.acquire()
         self.transaction = self.conn.transaction()
         await self.transaction.__aenter__()
         return self.conn
@@ -31,4 +31,4 @@ class UnitOfWork:
         if self.transaction:
             await self.transaction.__aexit__(exc_type, exc_val, exc_tb)
         if self.mgr and self.conn:
-            await self.mgr._pool.release(self.conn)
+            await self.mgr.pool.release(self.conn)

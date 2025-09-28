@@ -1,5 +1,5 @@
 from db.manager import AsyncPGPoolManager
-from models import BaseAbstractModel
+from db.models import BaseAbstractModel
 from db.config import DBConfig
 
 __all__ = (

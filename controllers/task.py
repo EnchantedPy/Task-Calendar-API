@@ -1,9 +1,13 @@
-from litestar import Controller, get, post, delete, patch
+from litestar import Controller, post, delete, put
 from litestar.di import Provide
-from repository import TaskRepository
+from db.repository import TaskRepository
 from dto import TaskDTO, AddTaskDTO, TaskUpdateDTO
 from pydantic import BaseModel, Field
-from models import _TaskModel
+from db.models import _TaskModel
+
+class TaskAdd(BaseModel):
+    title: str = "New task"
+    description: str
 
 class TaskGet(BaseModel):
     id: int = Field(
@@ -15,17 +19,13 @@ class TaskDel(BaseModel):
         gt=0
     )
 
-class TaskUpdateInfo(BaseModel):
+class TaskUpdate(BaseModel):
     id: int = Field(
         gt=0
     )
     title: str
     description: str
-
-class TaskMarkDone(BaseModel):
-    id: int = Field(
-        gt=0
-    )
+    done: bool
 
 class TaskController(Controller):
     path = "/tasks"
@@ -34,12 +34,12 @@ class TaskController(Controller):
     }
 
     # to POST
-    @get("/add", tags=["DB"])
-    async def add_task(self, repo: TaskRepository) -> TaskDTO:
+    @post("/add", tags=["DB"])
+    async def add_task(self, data: TaskAdd, repo: TaskRepository) -> TaskDTO:
         return await repo.add(
             AddTaskDTO(
-                title="Some task",
-                description="Some description",
+                title=data.title,
+                description=data.description,
             )
         )
 
@@ -55,18 +55,10 @@ class TaskController(Controller):
             data.id
         )
 
-    @patch("/update", tags=["DB"])
-    async def update_task(self, data: TaskUpdateInfo, repo: TaskRepository) -> TaskDTO:
+    @put("/update", tags=["DB"])
+    async def update_task(self, data: TaskUpdate, repo: TaskRepository) -> TaskDTO:
         return await repo.update(
                 TaskUpdateDTO(
-                    **data.model_dump()
+                    data.id, data.title, data.description, data.done
                 )
-        )
-
-    @patch("/done", tags=["DB"])
-    async def done_task(self, data: TaskMarkDone, repo: TaskRepository) -> TaskDTO:
-        dict_ = dict(**data.model_dump())
-        dict_["done"] = True
-        return await repo.update(
-            TaskUpdateDTO(**dict_)
         )

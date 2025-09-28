@@ -104,8 +104,7 @@ class _TaskModel(BaseAbstractModel):
     title: types.String = types.String(
         index=True, # remove later
         unique=True, # remove later
-        nullable=False,
-        default="New task"
+        nullable=False
     )
     description: types.String = types.String(
         nullable=True
