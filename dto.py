@@ -1,3 +1,4 @@
+from datetime import datetime
 from dataclasses import dataclass
 import typing
 import uuid
@@ -22,6 +23,20 @@ class TaskUpdateDTO:
     description: str
     done: bool
 
+class CalendarNoteDTO(typing.TypedDict):
+    id: int
+    uid: uuid.UUID
+    date: datetime
+    title: str
+    note: str
+
 @dataclass
 class AddCalendarNoteDTO:
-    pass # NotImplemented
+    title: str
+    note: str
+
+@dataclass
+class CalendarNoteUpdateDTO:
+    id: int
+    title: str
+    note: str

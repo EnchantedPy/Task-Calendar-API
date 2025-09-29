@@ -1,23 +1,8 @@
 from dto import TaskDTO, TaskUpdateDTO, AddTaskDTO
 import typing
 from loguru import logger as log
-from db.uow import UnitOfWork
 from db.models import BaseAbstractModel
-
-class BaseRepository:
-    def __init__(
-            self,
-            return_dto: typing.Type[typing.TypedDict],
-            table: str
-    ) -> None:
-        self.uow: typing.Callable[[], UnitOfWork | None] = UnitOfWork.instance
-        self.return_dto: typing.Type[typing.TypedDict] = return_dto
-        self.table: str = table
-        self.log = log
-
-    async def transaction(self) -> UnitOfWork:
-        return self.uow()
-
+from repository import BaseRepository
 
 class TaskRepository(BaseRepository):
 
@@ -64,7 +49,6 @@ class TaskRepository(BaseRepository):
                     f"DELETE FROM {self.table} WHERE id=$1 RETURNING id;",
                     task_id
             )
-        log.warning(row.__repr__())
         return self.return_dto(**row)
 
     async def update(
@@ -72,12 +56,8 @@ class TaskRepository(BaseRepository):
             task: TaskUpdateDTO
     ) -> TaskDTO:
         async with await self.transaction() as uow:
-                await uow.execute(
-                    f"UPDATE {self.table} SET title=$2, description=$3, done=$4 WHERE id=$1",
-                    task.id, task.title, task.description, task.done
-                )
                 row = await uow.fetchrow(
-                    f"SELECT * FROM {self.table} WHERE id=$1",
-                    task.id
+                    f"UPDATE {self.table} SET title=$2, description=$3, done=$4 WHERE id=$1 RETURNING *;",
+                    task.id, task.title, task.description, task.done
                 )
         return self.return_dto(**row)

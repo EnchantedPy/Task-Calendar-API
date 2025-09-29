@@ -2,7 +2,7 @@ import typing
 from litestar import Litestar, get
 from core.settings import settings
 from core.lifespan import ASGILifespan
-from controllers import TaskController
+from controllers import TaskController, CalendarController
 
 @get("/", tags=["Litestar"])
 async def index() -> typing.Dict[str, str]:
@@ -15,7 +15,7 @@ async def postgres_url() -> typing.Dict[str, str]:
     }
 
 app = Litestar(
-    route_handlers=[index, postgres_url, TaskController],
+    route_handlers=[index, postgres_url, TaskController, CalendarController],
     on_startup=[ASGILifespan.startup],
     on_shutdown=[ASGILifespan.shutdown],
     debug=True

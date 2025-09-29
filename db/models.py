@@ -151,10 +151,11 @@ class _CalendarNoteModel(BaseAbstractModel):
         nullable=False,
     )
     date: types.DateTime = types.DateTime(
-        default="now()"
+        default="now()",
+        nullable=False
     )
     title: types.String = types.String(
-        default="New note"
+        nullable=False
     )
 
     note: types.String = types.String(

@@ -1,6 +1,6 @@
 from litestar import Controller, post, delete, put
 from litestar.di import Provide
-from db.repository import TaskRepository
+from repository import TaskRepository
 from dto import TaskDTO, AddTaskDTO, TaskUpdateDTO
 from pydantic import BaseModel, Field
 from db.models import _TaskModel
@@ -34,7 +34,7 @@ class TaskController(Controller):
     }
 
     # to POST
-    @post("/add", tags=["DB"])
+    @post("/add", tags=["Tasks"])
     async def add_task(self, data: TaskAdd, repo: TaskRepository) -> TaskDTO:
         return await repo.add(
             AddTaskDTO(
@@ -43,19 +43,19 @@ class TaskController(Controller):
             )
         )
 
-    @post("/get", tags=["DB"])
+    @post("/get", tags=["Tasks"])
     async def get_task(self, data: TaskGet, repo: TaskRepository) -> TaskDTO:
         return await repo.get(
             data.id
         )
 
-    @delete("/delete", tags=["DB"], status_code=200)
+    @delete("/delete", tags=["Tasks"], status_code=200)
     async def delete_task(self, data: TaskDel, repo: TaskRepository) -> TaskDTO:
         return await repo.delete(
             data.id
         )
 
-    @put("/update", tags=["DB"])
+    @put("/update", tags=["Tasks"])
     async def update_task(self, data: TaskUpdate, repo: TaskRepository) -> TaskDTO:
         return await repo.update(
                 TaskUpdateDTO(

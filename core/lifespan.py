@@ -1,6 +1,7 @@
 from db.manager import AsyncPGPoolManager
 from db.models import BaseAbstractModel
 from db.config import DBConfig
+import pathlib
 
 __all__ = (
     "ASGILifespan"
@@ -12,6 +13,9 @@ class ASGILifespan:
     async def startup() -> None:
         DBConfig.new_extension(
             "uuid-ossp"
+        )
+        DBConfig.set_sql_dir(
+            pathlib.Path(__file__).resolve().parent.parent / "sql"
         )
 
         mgr = await AsyncPGPoolManager.instance()
@@ -33,6 +37,9 @@ class ASGILifespan:
 
     @staticmethod
     async def shutdown() -> None:
+        DBConfig.clear_extensions()
+        DBConfig.unset_sql_dir()
+
         mgr = await AsyncPGPoolManager.instance()
 
         # Tables dropping
