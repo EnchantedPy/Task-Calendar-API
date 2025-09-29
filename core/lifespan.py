@@ -14,6 +14,7 @@ class ASGILifespan:
         DBConfig.new_extension(
             "uuid-ossp"
         )
+
         DBConfig.set_sql_dir(
             pathlib.Path(__file__).resolve().parent.parent / "sql"
         )
@@ -37,8 +38,6 @@ class ASGILifespan:
 
     @staticmethod
     async def shutdown() -> None:
-        DBConfig.clear_extensions()
-        DBConfig.unset_sql_dir()
 
         mgr = await AsyncPGPoolManager.instance()
 
@@ -49,3 +48,6 @@ class ASGILifespan:
 
         # After shutdown hook
         await mgr.run_after_shutdown_hook()
+
+        DBConfig.clear_extensions()
+        DBConfig.unset_sql_dir()

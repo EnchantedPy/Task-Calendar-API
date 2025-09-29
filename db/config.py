@@ -7,6 +7,7 @@ class DBConfig:
 
     @classmethod
     def set_sql_dir(cls, path: pathlib.Path) -> None:
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
         cls._sql_dir = path
 
     @classmethod

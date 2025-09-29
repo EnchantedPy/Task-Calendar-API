@@ -1,3 +1,6 @@
+import textwrap
+
+import aiofiles
 import asyncpg
 from db.models import BaseAbstractModel
 from core.settings import settings
@@ -97,7 +100,7 @@ class AsyncPGPoolManager:
                     columns = [
                         column for column in self._get_columns_based_on_attrs_and_type_instances(_models[idx])
                     ]
-                    query = (
+                    query = textwrap.dedent(
                         f"""
                             CREATE TABLE IF NOT EXISTS {table} (
                                 {", ".join(columns)}
@@ -105,6 +108,8 @@ class AsyncPGPoolManager:
                         """
                     )
                     # self.log.critical(query)
+                    async with aiofiles.open(DBConfig.sql_dir() / f"{table}_table_created.sql", "w") as file:
+                        await file.write(query)
                     await conn.pool.execute(
                         query
                     )
@@ -118,8 +123,11 @@ class AsyncPGPoolManager:
             try:
                 for table in tables:
                     self.log.warning(f"Dropping table {table}...")
+                    query = f"DROP TABLE IF EXISTS {table}"
+                    async with aiofiles.open(DBConfig.sql_dir() / f"{table}_table_dropped.sql", "w") as file:
+                        await file.write(query)
                     await conn.pool.execute(
-                        f"DROP TABLE IF EXISTS {table}"
+                        query
                     )
                     self.log.warning(f"Dropped table {table}")
             except Exception as e:
@@ -128,6 +136,7 @@ class AsyncPGPoolManager:
 
     async def run_pre_init_hook(self) -> None:
         async with self as conn:
+            statements = []
             try:
                 extensions = DBConfig.extensions()
                 self.log.warning("Running pre-init hook...")
@@ -135,8 +144,14 @@ class AsyncPGPoolManager:
                     self.log.warning(
                         f"Creating extensions {extension!r}"
                     )
+                    query = f"CREATE EXTENSION IF NOT EXISTS \"{extension}\";"
+                    statements.append(query)
                     await conn.pool.execute(
-                        f"CREATE EXTENSION IF NOT EXISTS \"{extension}\";"
+                        query
+                    )
+                async with aiofiles.open(DBConfig.sql_dir() / "extensions_created.sql", "w") as file:
+                    await file.write(
+                        "\n".join(statements)
                     )
                 log.warning("Pre init hook completed successfully")
             except Exception as e:
@@ -155,6 +170,8 @@ class AsyncPGPoolManager:
                             f"Creating index {index} in table {table}..."
                         )
                         stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index})"
+                        async with aiofiles.open(DBConfig.sql_dir() / f"{table}_{index}_index_created.sql", "w") as file:
+                            await file.write(stmt)
                         await conn.pool.execute(stmt)
 
                 log.warning("Post init hook completed successfully")
@@ -164,14 +181,21 @@ class AsyncPGPoolManager:
 
     async def run_after_shutdown_hook(self) -> None:
         async with self as conn:
+            statements = []
             try:
                 extensions = DBConfig.extensions()
                 for extension in extensions:
                     self.log.warning(
                         f"Dropping extension {extension!r}"
                     )
+                    query = f"DROP EXTENSION IF EXISTS \"{extension}\";"
+                    statements.append(query)
                     await conn.pool.execute(
-                        f"DROP EXTENSION IF EXISTS \"{extension}\";"
+                        query
+                    )
+                async with aiofiles.open(DBConfig.sql_dir() / f"extensions_dropped.sql", "w") as file:
+                    await file.write(
+                        "\n".join(statements)
                     )
                 log.warning("After shutdown hook completed successfully")
             except Exception as e:
