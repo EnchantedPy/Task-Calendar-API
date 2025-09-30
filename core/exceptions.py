@@ -13,21 +13,21 @@ from asyncpg.exceptions import (
 
 def unique_violation_handler(request: Request, exc: UniqueViolationError) -> Response:
     return Response(
-        content={"detail": "Conflict: Duplicate entry."},
+        content={"detail": "Unique constraint violation."},
         status_code=HTTP_409_CONFLICT,
     )
 
 
 def foreign_key_violation_handler(request: Request, exc: ForeignKeyViolationError) -> Response:
     return Response(
-        content={"detail": "Foreign key violation. Invalid reference."},
+        content={"detail": "Foreign key violation."},
         status_code=HTTP_400_BAD_REQUEST,
     )
 
 
 def postgres_error_handler(request: Request, exc: PostgresError) -> Response:
     return Response(
-        content={"detail": "A database error occurred."},
+        content={"detail": "Unexpected database error."},
         status_code=HTTP_500_INTERNAL_SERVER_ERROR,
     )
 
