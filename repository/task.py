@@ -17,16 +17,12 @@ class TaskRepository(BaseRepository):
             task: AddTaskDTO
     ) -> TaskDTO:
         async with await self.transaction() as uow:
-            serial = await uow.fetchrow(
+            row = await uow.fetchrow(
                     f"""
-                    INSERT INTO {self.table} (title, description) VALUES ($1, $2) RETURNING id;
+                    INSERT INTO {self.table} (title, description) VALUES ($1, $2) RETURNING *;
                     """,
               task.title, task.description
             )
-            row = await uow.fetchrow(
-                    f"SELECT * FROM {self.table} WHERE id=$1",
-                    serial["id"]
-                )
         return self.return_dto(**row)
 
     async def get(
@@ -35,7 +31,7 @@ class TaskRepository(BaseRepository):
     ) -> TaskDTO:
         async with await self.transaction() as uow:
             row = await uow.fetchrow(
-                f"SELECT * FROM {self.table} WHERE id=$1",
+                f"SELECT * FROM {self.table} WHERE id=$1;",
                 task_id
             )
         return self.return_dto(**row)
@@ -46,7 +42,7 @@ class TaskRepository(BaseRepository):
     ) -> TaskDTO:
         async with await self.transaction() as uow:
             row = await uow.fetchrow(
-                    f"DELETE FROM {self.table} WHERE id=$1 RETURNING id;",
+                    f"DELETE FROM {self.table} WHERE id=$1 RETURNING *;",
                     task_id
             )
         return self.return_dto(**row)

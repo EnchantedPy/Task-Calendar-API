@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from dto import CalendarNoteDTO, CalendarNoteUpdateDTO, AddCalendarNoteDTO
 
 class CalendarNoteAdd(BaseModel):
-    title: str
+    title: str = "New note"
     note: str
 
 class CalendarNoteGet(BaseModel):

@@ -13,13 +13,9 @@ class CalendarNoteRepository(BaseRepository):
 
     async def add(self, note: AddCalendarNoteDTO) -> CalendarNoteDTO:
         async with await self.transaction() as uow:
-            serial = await uow.fetchrow(
-                f"INSERT INTO {self.table} (title, note) VALUES ($1, $2) RETURNING id;",
-                note.title, note.note
-            )
             row = await uow.fetchrow(
-                f"SELECT * FROM {self.table} WHERE id = $1;",
-                serial["id"]
+                f"INSERT INTO {self.table} (title, note) VALUES ($1, $2) RETURNING *;",
+                note.title, note.note
             )
         return self.return_dto(**row)
 
@@ -35,7 +31,7 @@ class CalendarNoteRepository(BaseRepository):
     async def delete(self, note_id: int) -> CalendarNoteDTO:
         async with await self.transaction() as uow:
             row = await uow.fetchrow(
-                f"DELETE FROM {self.table} WHERE id = $1 RETURNING id;",
+                f"DELETE FROM {self.table} WHERE id = $1 RETURNING *;",
                 note_id
             )
         return self.return_dto(**row)
@@ -43,7 +39,7 @@ class CalendarNoteRepository(BaseRepository):
     async def update(self, task: CalendarNoteUpdateDTO) -> CalendarNoteDTO:
         async with await self.transaction() as uow:
             row = await uow.fetchrow(
-                f"UPDATE {self.table} SET title = $2, note = $3 WHERE id = $1",
+                f"UPDATE {self.table} SET title = $2, note = $3 WHERE id = $1 RETURNING *;",
                 task.id, task.title, task.note
             )
         return self.return_dto(**row)

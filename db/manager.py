@@ -123,7 +123,7 @@ class AsyncPGPoolManager:
             try:
                 for table in tables:
                     self.log.warning(f"Dropping table {table}...")
-                    query = f"DROP TABLE IF EXISTS {table}"
+                    query = f"DROP TABLE IF EXISTS {table};"
                     async with aiofiles.open(DBConfig.sql_dir() / f"{table}_table_dropped.sql", "w") as file:
                         await file.write(query)
                     await conn.pool.execute(
@@ -169,7 +169,7 @@ class AsyncPGPoolManager:
                         self.log.warning(
                             f"Creating index {index} in table {table}..."
                         )
-                        stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index})"
+                        stmt = f"CREATE INDEX {table}_{index}_index ON {table} ({index});"
                         async with aiofiles.open(DBConfig.sql_dir() / f"{table}_{index}_index_created.sql", "w") as file:
                             await file.write(stmt)
                         await conn.pool.execute(stmt)

@@ -1,1 +1,4 @@
-generate .sql files to exec hooks and for cli migrate
+Exc handling
+IF NOT EXISTS
+Dir structure
+; after sql stmts
