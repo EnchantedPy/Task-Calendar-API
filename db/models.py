@@ -149,6 +149,7 @@ class _CalendarNoteModel(BaseAbstractModel):
         index=True,
         unique=True,
         nullable=False,
+        default="uuid_generate_v4()"
     )
     date: types.DateTime = types.DateTime(
         default="now()",
