@@ -33,7 +33,6 @@ class TaskController(Controller):
         "repo": Provide(lambda: TaskRepository(_TaskModel), sync_to_thread=False),
     }
 
-    # to POST
     @post("/add", tags=["Tasks"])
     async def add_task(self, data: TaskAdd, repo: TaskRepository) -> TaskDTO:
         return await repo.add(
