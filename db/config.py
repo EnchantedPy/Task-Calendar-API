@@ -3,7 +3,7 @@ import typing
 
 class DBConfig:
     _extensions: typing.ClassVar[list[str]] = []
-    _sql_dir: typing.ClassVar[pathlib.Path]
+    _sql_dir: typing.ClassVar[pathlib.Path | None] = None
 
     @classmethod
     def set_sql_dir(cls, path: pathlib.Path) -> None:
